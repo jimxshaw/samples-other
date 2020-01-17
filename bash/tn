@@ -3,8 +3,11 @@
 # Simple note-taking script
 # Author: Shaw
 
+# Get the date
+date=$(date)
+
 # Ask user for input
 read -p "Your note: " note
 
-echo $(date): $note >> ./notes.txt
+echo date: $note >> ./notes.txt
 echo Note saved: $note
