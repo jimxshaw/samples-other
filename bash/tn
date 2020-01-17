@@ -3,4 +3,4 @@
 # Simple note-taking script
 # Author: Shaw
 
-echo $1 >> ~/notes.txt
+echo $(date): $* >> ./notes.txt
