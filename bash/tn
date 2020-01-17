@@ -4,3 +4,4 @@
 # Author: Shaw
 
 echo $(date): $* >> ./notes.txt
+echo Note saved: $*
