@@ -7,13 +7,13 @@
 date=$(date)
 
 # Get the topic
-topic=$1
+topic="$1"
 
 # Filename to write to
-filename=./${topic}notes.txt
+filename="./${topic}notes.txt"
 
 # Ask user for input
 read -p "Your note: " note
 
-echo $date: $note >> $filename
-echo Note \'$note\' saved to $filename
+echo "$date: $note" >> "$filename"
+echo "Note '$note' saved to $filename"
