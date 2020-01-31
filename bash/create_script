@@ -1,0 +1,44 @@
+#!/bin/bash
+
+# create_script
+# This script creates a new bash script, sets permissions and more
+# Author: jimxshaw
+
+# Is there an argument?
+if [[ ! $1 ]]
+then 
+  echo "Missing argument"
+  exit 1
+fi
+
+scriptname="$1"
+dirname="./"
+filename="${dirname}/${scriptname}"
+
+if [[ -e $filename ]]
+then
+  echo "File ${filename} already exists"
+  exit 1
+fi
+
+if type "$scriptname"
+then
+  echo "There is already a command with name ${scriptname}"
+  exit 1
+fi
+
+# Check if directory exists
+if [[ ! -d $dirname ]]
+then 
+  # if not: create the directory
+  if mkdir "$dirname"
+  then
+    echo "created ${dirname}"
+  else
+    echo "Could not create ${dirname}."
+    exit 1
+  fi
+fi
+
+echo "Reached end of code"
+exit 0
