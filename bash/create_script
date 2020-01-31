@@ -40,5 +40,14 @@ then
   fi
 fi
 
-echo "Reached end of code"
-exit 0
+# Create a script with a single line
+echo "#!/bin/bash" > "$filename"
+# Add executable permission
+chmod u+x "$filename"
+# Open with editor
+if [[ $EDITOR ]]
+then 
+  $EDITOR "$filename"
+else
+  echo "Script created; not starting editor because \$EDITOR is not set."
+fi
