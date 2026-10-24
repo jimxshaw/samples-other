@@ -57,6 +57,20 @@
       (sort-into-two-stacks stack-of-items))
 )
 
+; 6. member-n-times?: is our target in the list exactly how many times given
+;     in the input? Recursive helper counts the matches then the count is 
+;     compared to the how many input. Must use recursion.
+(define member-n-times?
+  (lambda (target how-many stack-of-items)
+    (define count-matches
+      (lambda (stack)
+        (cond
+          [(empty? stack) 0]
+          [(equal? (first stack) target) (+ 1 (count-matches (rest stack)))]
+          [else (count-matches (rest stack))])))
+    (= (count-matches stack-of-items) how-many))
+)
+
 ; UNIT TESTS: the code here is for testing the above functions.
 ;   Run these tests with 
 ;       raco test <file name>.rkt
@@ -94,10 +108,20 @@
     (check-equal? (zipper '() '(1 2)) '())
     (check-equal? (zipper '() '()) '())
 
+    ; classify
     (check-equal? (classify even? '(7 2 3 5 8)) '((2 8) (7 3 5)))
     (check-equal? (classify number? '()) '(() ()))
     (check-equal? (classify (lambda (n) (> n 10)) '(3 8 -5 16 99)) '((16 99) (3 8 -5)))
     (check-equal? (classify integer? '(4 8 2)) '((4 8 2) ()))
     (check-equal? (classify string? '(4 8 2)) '(() (4 8 2)))
     (check-equal? (classify string? '("a" 1 "b" #t)) '(("a" "b") (1 #t)))
+
+    ; member-n-times?
+    (check-equal? (member-n-times? 6 2 '(4 8 6 2 1 6)) #t)
+    (check-equal? (member-n-times? 7 0 '(4 8 6 2 1)) #t)
+    (check-equal? (member-n-times? 3.5 2 '(9 3.5 6 3.52)) #f)
+    (check-equal? (member-n-times? "hello" 2 '("hello" 4 5 #f "hello" a)) #t)
+    (check-equal? (member-n-times? 5 1 '()) #f)
+    (check-equal? (member-n-times? 5 0 '()) #t)
+    (check-equal? (member-n-times? 4 3 '(4 4 4 4)) #f)
 )
