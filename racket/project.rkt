@@ -93,4 +93,11 @@
     (check-equal? (zipper '(5) '()) '())
     (check-equal? (zipper '() '(1 2)) '())
     (check-equal? (zipper '() '()) '())
+
+    (check-equal? (classify even? '(7 2 3 5 8)) '((2 8) (7 3 5)))
+    (check-equal? (classify number? '()) '(() ()))
+    (check-equal? (classify (lambda (n) (> n 10)) '(3 8 -5 16 99)) '((16 99) (3 8 -5)))
+    (check-equal? (classify integer? '(4 8 2)) '((4 8 2) ()))
+    (check-equal? (classify string? '(4 8 2)) '(() (4 8 2)))
+    (check-equal? (classify string? '("a" 1 "b" #t)) '(("a" "b") (1 #t)))
 )
