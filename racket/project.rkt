@@ -15,7 +15,7 @@
         (mymap transform (rest stack-of-items)))]))
 )
 
-; 3. second-min: drop repeats, sort smallest to largest and return the second.
+; 3. second-min: Drop repeats, sort smallest to largest and return the second.
 ;     If fewer than two uniques then raise an error.
 (define second-min
   (lambda (numbers)
@@ -26,7 +26,7 @@
         [else (second ranked-numbers)]))
 )
 
-; 4. zipper: pair up items from two lists by position as 2-item lists.
+; 4. zipper: Pair up items from two lists by position as 2-item lists.
 ;     If either list is empty then stop as extras are ignored. Must use recursion.
 (define zipper
   (lambda (first-stack second-stack)
@@ -36,7 +36,7 @@
         (zipper (rest first-stack) (rest second-stack)))]))
 )
 
-; 5. classify: split a list into either passing or failing using a yes/no test.
+; 5. classify: Split a list into either passing or failing using a yes/no test.
 ;       A recursive helper sorts each item into one of the two stacks, keeping order
 ;       and returns them as a 2-item list. Must use recursion.
 (define classify
@@ -57,7 +57,7 @@
       (sort-into-two-stacks stack-of-items))
 )
 
-; 6. member-n-times?: is our target in the list exactly how many times given
+; 6. member-n-times?: Is our target in the list exactly how many times given
 ;     in the input? Recursive helper counts the matches then the count is 
 ;     compared to the how many input. Must use recursion.
 (define member-n-times?
@@ -69,6 +69,63 @@
           [(equal? (first stack) target) (+ 1 (count-matches (rest stack)))]
           [else (count-matches (rest stack))])))
     (= (count-matches stack-of-items) how-many))
+)
+
+; 7. luhn: Is the number a valid luhn checksum number?
+;     Walk the digits right to left, doubling every 2nd digit where a doubled 
+;     2-digit result has its digits added. Valid if the total ends in 0.
+(define luhn
+  (lambda (number)
+    (define digit-value
+      (lambda (digit should-double?)
+        (if should-double?
+            (+ (quotient (* 2 digit) 10) (remainder (* 2 digit) 10))
+            digit)))
+    (define sum-digits
+      (lambda (remaining should-double?)
+        (if (= remaining 0)
+            0
+            (+ (digit-value (remainder remaining 10) should-double?)
+               (sum-digits (quotient remaining 10) (not should-double?))))))
+    (= (remainder (sum-digits number #f) 10) 0))
+)
+
+; 8. my-sorted?: Is the list in order according to the in order input?
+;     Check each neighboring pair. One failing pair makes the answer false.
+;     Fewer than two items has no pairs so it counts as sorted. 
+;     Must use recursion.
+(define my-sorted?
+  (lambda (in-order? stack-of-items)
+    (cond
+      [(or (empty? stack-of-items) (empty? (rest stack-of-items))) #t]
+      [else (and (in-order? (first stack-of-items) (second stack-of-items))
+                 (my-sorted? in-order? (rest stack-of-items)))]))
+)
+
+; 9. my-flatten: Turn arbitrarily nested lists into one flat list.
+;     First item is a list, flatten it, flatten the rest then append
+;     the two results. Otherwise keep the item and cons it on.
+;     Must use recursion.
+(define my-flatten
+  (lambda (stack-of-things)
+    (cond
+      [(empty? stack-of-things) '()]
+      [(list? (first stack-of-things))
+       (append (my-flatten (first stack-of-things))
+               (my-flatten (rest stack-of-things)))]
+      [else (cons (first stack-of-things)
+                  (my-flatten (rest stack-of-things)))]))
+)
+
+; 10. my-list-ref: Return the item at the input position. Empty list produces
+;       error. Position 0 returns the first item. Otherwise ask for position -1
+;       in the rest of the list. Must use recursion.
+(define my-list-ref
+  (lambda (stack-of-items position)
+    (cond
+      [(empty? stack-of-items) (error "ERROR: Index out of bounds")]
+      [(= position 0) (first stack-of-items)]
+      [else (my-list-ref (rest stack-of-items) (- position 1))]))
 )
 
 ; UNIT TESTS: the code here is for testing the above functions.
@@ -124,4 +181,40 @@
     (check-equal? (member-n-times? 5 1 '()) #f)
     (check-equal? (member-n-times? 5 0 '()) #t)
     (check-equal? (member-n-times? 4 3 '(4 4 4 4)) #f)
+
+    ; luhn
+    (check-equal? (luhn 799273987104) #t)
+    (check-equal? (luhn 49927398717) #f)
+    (check-equal? (luhn 49927398716) #t)
+    (check-equal? (luhn 59) #t)
+    (check-equal? (luhn 79927398713) #t)
+    (check-equal? (luhn 79927398710) #f)
+
+    ; my-sorted?
+    (check-equal? (my-sorted? < '(2 5 6 9 11 34)) #t)
+    (check-equal? (my-sorted? < '(7 25 4 15 11 34)) #f)
+    (check-equal? (my-sorted? string<? '("alpha" "beta" "gamma")) #t)
+    (check-equal? (my-sorted? string<? '("john" "zack" "bob")) #f)
+    (check-equal? (my-sorted? < '()) #t)
+    (check-equal? (my-sorted? < '(7)) #t)
+    (check-equal? (my-sorted? > '(9 5 2)) #t)
+    (check-equal? (my-sorted? < '(3 3)) #f)
+
+    ; my-flatten
+    (check-equal? (my-flatten '(1)) '(1))
+    (check-equal? (my-flatten '((1 2) 3)) '(1 2 3))
+    (check-equal? (my-flatten '(((4 3) 6) ((7 2 9) (5 1)))) '(4 3 6 7 2 9 5 1))
+    (check-equal? (my-flatten '()) '())
+    (check-equal? (my-flatten '(())) '())
+    (check-equal? (my-flatten '(((((1)))))) '(1))
+    (check-equal? (my-flatten '("a" (b ("c")) 4)) '("a" b "c" 4))
+
+    ; my-list-ref
+    (check-equal? (my-list-ref '(4 7 9) 0) 4)
+    (check-equal? (my-list-ref '(4 7 9) 1) 7)
+    (check-equal? (my-list-ref '(4 7 9) 2) 9)
+    (check-equal? (my-list-ref '("a" #t 6.18) 1) #t)
+    (check-exn #rx"Index out of bounds" (lambda () (my-list-ref '(4 7 9) 3)))
+    (check-exn #rx"Index out of bounds" (lambda () (my-list-ref '() 0)))
+    (check-exn #rx"Index out of bounds" (lambda () (my-list-ref '(4 7 9) -1)))
 )
