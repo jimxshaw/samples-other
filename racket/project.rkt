@@ -2,38 +2,59 @@
 
 ; 1. process-4: Hands 4 to the given function and returns its result.
 (define process-4
-    (lambda (action)
-        (action 4))
+  (lambda (action)
+    (action 4))
 )
 
 ; 2. mymap: Duplicates map. Must use recursion.
 (define mymap
-    (lambda (transform stack-of-items)
-        (cond
-            [(empty? stack-of-items) '()]
-            [else (cons (transform (first stack-of-items))
-                (mymap transform (rest stack-of-items)))]))
+  (lambda (transform stack-of-items)
+    (cond
+      [(empty? stack-of-items) '()]
+      [else (cons (transform (first stack-of-items))
+        (mymap transform (rest stack-of-items)))]))
 )
 
 ; 3. second-min: drop repeats, sort smallest to largest and return the second.
-;       If fewer than two uniques then raise an error.
+;     If fewer than two uniques then raise an error.
 (define second-min
-    (lambda (numbers)
-        (define unique-numbers (remove-duplicates numbers))
-        (define ranked-numbers (sort unique-numbers <))
-            (cond
-                [(< (length ranked-numbers) 2) (error "Need at least two unique values!")]
-                [else (second ranked-numbers)]))
+  (lambda (numbers)
+    (define unique-numbers (remove-duplicates numbers))
+    (define ranked-numbers (sort unique-numbers <))
+      (cond
+        [(< (length ranked-numbers) 2) (error "Need at least two unique values!")]
+        [else (second ranked-numbers)]))
 )
 
 ; 4. zipper: pair up items from two lists by position as 2-item lists.
-;       If either list is empty then stop as extras are ignored. Must use recursion.
+;     If either list is empty then stop as extras are ignored. Must use recursion.
 (define zipper
   (lambda (first-stack second-stack)
     (cond
       [(or (empty? first-stack) (empty? second-stack)) '()]
       [else (cons (list (first first-stack) (first second-stack))
-                  (zipper (rest first-stack) (rest second-stack)))]))
+        (zipper (rest first-stack) (rest second-stack)))]))
+)
+
+; 5. classify: split a list into either passing or failing using a yes/no test.
+;       A recursive helper sorts each item into one of the two stacks, keeping order
+;       and returns them as a 2-item list. Must use recursion.
+(define classify
+  (lambda (test stack-of-items)
+    (define sort-into-two-stacks
+      (lambda (stack)
+        (cond
+          [(empty? stack) (list '() '())]
+          [else
+            (define rest-result (sort-into-two-stacks (rest stack)))
+            (define passing-rest (first rest-result))
+            (define failing-rest (second rest-result))
+            (cond
+              [(test (first stack))
+                (list (cons (first stack) passing-rest) failing-rest)]
+              [else
+                (list passing-rest (cons (first stack) failing-rest))])])))
+      (sort-into-two-stacks stack-of-items))
 )
 
 ; UNIT TESTS: the code here is for testing the above functions.
