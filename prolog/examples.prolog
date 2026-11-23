@@ -1,6 +1,20 @@
 
 % ================ PREDICATES ================ %
 
+% 2. classify(+List, +TestPredicate, -Pass, -Fail): split List into the
+% items that pass TestPredicate and the items that fail it, keeping order.
+% Empty list -> two empty lists. Otherwise test the head with call/2,
+% put it on the front of the right basket, and classify the tail.
+classify([], _, [], []).
+classify([Head | Tail], Test, Pass, Fail) :-
+    (   call(Test, Head)
+    ->  Pass = [Head | PassRest],
+        Fail = FailRest
+    ;   Pass = PassRest,
+        Fail = [Head | FailRest]
+    ),
+    classify(Tail, Test, PassRest, FailRest).
+
 % 3. subslice(+List1, +List2): true if List1 appears as a contiguous
 % run of elements anywhere in List2.
 % Try every suffix of List2; succeed if one starts with List1.
@@ -62,6 +76,26 @@ luhn_flip(false, true).
 
 % ================ TESTS ================ %
 % Run with: ?- run_tests.
+
+% classify tests %
+:- begin_tests(classify).
+
+test(even_lambda) :-
+    classify([8,7,6,5,4,3], [X]>>(0 is X mod 2), [8,6,4], [7,5,3]).
+test(integer) :-
+    classify([-4, 11.2, "hi", 9, 0], integer, [-4,9,0], [11.2,"hi"]).
+test(number) :-
+    classify([-4, 11.2, "hi", 9, 0], number, [-4,11.2,9,0], ["hi"]).
+test(empty_undefined_test) :-
+    classify([], odd, [], []).
+test(all_pass) :-
+    classify([a,b,c], atom, [a,b,c], []).
+test(all_fail) :-
+    classify([1,2,3], atom, [], [1,2,3]).
+test(string) :-
+    classify(["a", 1, "b", x], string, ["a","b"], [1,x]).
+
+:- end_tests(classify).
 
 % Subslice tests %
 :- begin_tests(subslice).
