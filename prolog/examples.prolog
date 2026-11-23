@@ -1,6 +1,50 @@
 
 % ================ PREDICATES ================ %
 
+% 1. secondMin(+List, -Min2): Min2 is the second lowest unique number in List.
+% First non-number -> print an error and fail. Then sort with mySort
+% (which also drops duplicates) and take the 2nd item. Fewer than two
+% unique values -> print an error and fail. Does not use sort/2.
+secondMin(List, Min2) :-
+    (   secondmin_first_non_number(List, Bad)
+    ->  format(atom(Message), 'ERROR: "~w" is not a number.', [Bad]),
+        writeln(Message),
+        fail
+    ;   mySort(List, Sorted),
+        (   Sorted = [_, Second | _]
+        ->  Min2 = Second
+        ;   writeln('ERROR: List has fewer than two unique elements.'),
+            fail
+        )
+    ).
+
+% secondmin_first_non_number(+List, -Bad): Bad is the first non-number.
+% Fails if every element is a number.
+secondmin_first_non_number([Head | Tail], Bad) :-
+    (   number(Head)
+    ->  secondmin_first_non_number(Tail, Bad)
+    ;   Bad = Head
+    ).
+
+% mySort(+List, -Sorted): insertion sort, ascending, duplicates removed.
+mySort([], []).
+mySort([Head | Tail], Sorted) :-
+    mySort(Tail, SortedTail),
+    mysort_insert(SortedTail, Head, Sorted).
+
+% mysort_insert(+SortedList, +Item, -Result): put Item in its place,
+% dropping it if an equal value is already there.
+% The list comes first so Prolog picks the clause without a choicepoint.
+mysort_insert([], Item, [Item]).
+mysort_insert([Top | Rest], Item, Result) :-
+    (   Item =:= Top
+    ->  Result = [Top | Rest]
+    ;   Item < Top
+    ->  Result = [Item, Top | Rest]
+    ;   Result = [Top | NewRest],
+        mysort_insert(Rest, Item, NewRest)
+    ).
+
 % 2. classify(+List, +TestPredicate, -Pass, -Fail): split List into the
 % items that pass TestPredicate and the items that fail it, keeping order.
 % Empty list -> two empty lists. Otherwise test the head with call/2,
@@ -76,6 +120,34 @@ luhn_flip(false, true).
 
 % ================ TESTS ================ %
 % Run with: ?- run_tests.
+
+% secondMin tests %
+:- begin_tests(secondMin).
+
+test(spec_basic) :- secondMin([17,29,11,62,37,53], 17).
+test(spec_negatives) :- secondMin([7,5.2,3,6,-3.6,9,-2], -2).
+test(duplicate_smallest) :- secondMin([1,1,2], 2).
+test(two_items) :- secondMin([9,2], 9).
+
+test(spec_one_item) :-
+    with_output_to(string(Out), \+ secondMin([512], _)),
+    Out == "ERROR: List has fewer than two unique elements.\n".
+test(spec_all_same) :-
+    with_output_to(string(Out), \+ secondMin([3,3,3], _)),
+    Out == "ERROR: List has fewer than two unique elements.\n".
+test(empty) :-
+    with_output_to(string(Out), \+ secondMin([], _)),
+    Out == "ERROR: List has fewer than two unique elements.\n".
+test(spec_non_number) :-
+    with_output_to(string(Out), \+ secondMin([12,2,b,7], _)),
+    Out == "ERROR: \"b\" is not a number.\n".
+test(first_non_number_only) :-
+    with_output_to(string(Out), \+ secondMin([1,x,y], _)),
+    Out == "ERROR: \"x\" is not a number.\n".
+
+test(mysort) :- mySort([3,1,2,3,1], [1,2,3]).
+
+:- end_tests(secondMin).
 
 % classify tests %
 :- begin_tests(classify).
