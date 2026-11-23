@@ -116,8 +116,7 @@ luhn_flip(true, false).
 luhn_flip(false, true).
 
 % 6. path(+Node1, +Node2) and cycle(+Node) over directed edge/2 facts.
-% The edges come from the grader, so none are defined here. The dynamic
-% declaration lets the file load and answer false when no edges exist.
+% The dynamic declaration lets the file load and answer false when no edges exist.
 :- dynamic edge/2.
 
 % path(+From, +To): true if To can be reached from From.
@@ -153,7 +152,7 @@ married(profPlum, msGreen).
 greedy(colMustard).
 rich(mrBoddy).
 
-% PART B ADDED FACT: Colonel Mustard is rich.
+% PART B (cont'd) ADDED FACT: Colonel Mustard is rich.
 % Mustard no longer meets "greedy and NOT rich", so the greed motive
 % fails and Professor Plum becomes the unique suspect.
 rich(colMustard).
@@ -185,6 +184,78 @@ suspect(Killer, Victim) :-
 suspect(Killer, Victim) :-
     greedy_motive(Killer, Victim),
     Killer \== Victim.
+
+% 8. ZEBRA PUZZLE
+% zebra(-Historians): Historians is the left-to-right seating of five
+% h(Color, Name, Civilization, Event, Age, Hobby) records satisfying every clue.
+% Each clue is stated as a constraint. Prolog searches for the arrangement.
+zebra(Historians) :-
+    Historians = [_, _, _, _, _],
+    % Clue 13: the 65-year-old sits at one of the ends.
+    (   Historians = [h(_, _, _, _, 65, _) | _]
+    ;   last(Historians, h(_, _, _, _, 65, _))
+    ),
+    % Clues 1 and 9: Eugene cooks and discusses the Equinox.
+    member(h(_, eugene, _, equinox, _, cooking), Historians),
+    % Clues 8, 14, 18: Red shirt is Francis, dances, discusses the Solstice.
+    member(h(red, francis, _, solstice, _, dancing), Historians),
+    % Clue 3: Green shirt studies the Mayans.
+    member(h(green, _, mayan, _, _, _), Historians),
+    % Clue 5: the Celtic specialist discusses the Eclipse.
+    member(h(_, _, celtic, eclipse, _, _), Historians),
+    % Clue 7 (first part): the 65-year-old fishes.
+    member(h(_, _, _, _, 65, fishing), Historians),
+    % Clue 15: Donald studies the Persians.
+    member(h(_, donald, persian, _, _, _), Historians),
+    % Clue 20: the Chinese specialist is 45.
+    member(h(_, _, chinese, _, 45, _), Historians),
+    % Clue 12: Yellow shirt is immediately after the 45-year-old.
+    nextto(h(_, _, _, _, 45, _), h(yellow, _, _, _, _, _), Historians),
+    % Clues 4 and 19: the oldest (70) is immediately after Yellow shirt.
+    nextto(h(yellow, _, _, _, _, _), h(_, _, _, _, 70, _), Historians),
+    % Clue 16: the Equinox speaker is immediately after Green shirt.
+    nextto(h(green, _, _, _, _, _), h(_, _, _, equinox, _, _), Historians),
+    % Clue 7 (second part): Red shirt sits next to Samuel.
+    zebra_next_to(h(red, _, _, _, _, _), h(_, samuel, _, _, _, _), Historians),
+    % Clue 17: the 40-year-old sits next to Blue shirt.
+    zebra_next_to(h(_, _, _, _, 40, _), h(blue, _, _, _, _, _), Historians),
+    % Clue 2: the youngest (40) is somewhere right of White shirt.
+    zebra_right_of(h(_, _, _, _, 40, _), h(white, _, _, _, _, _), Historians),
+    % Clue 11: the scuba diver is somewhere right of Yellow shirt.
+    zebra_right_of(h(_, _, _, _, _, scuba_diving), h(yellow, _, _, _, _, _), Historians),
+    % Clue 6: forest hobby (fishing) ... White shirt ... Blue shirt, in order.
+    zebra_in_order(h(_, _, _, _, _, fishing), h(white, _, _, _, _, _),
+                   h(blue, _, _, _, _, _), Historians),
+    % Clue 10: 45-year-old ... Eclipse ... Sunrise alignment, in order.
+    zebra_in_order(h(_, _, _, _, 45, _), h(_, _, _, eclipse, _, _),
+                   h(_, _, _, sunrise_alignment, _, _), Historians),
+    % Every remaining value must appear somewhere, so each property
+    % is used exactly once across the five seats.
+    member(h(_, gabriel, _, _, _, _), Historians),
+    member(h(_, _, indian, _, _, _), Historians),
+    member(h(_, _, _, star_rise, _, _), Historians),
+    member(h(_, _, _, _, 60, _), Historians),
+    member(h(_, _, _, _, _, drawing), Historians).
+
+% zebra_right_of(+A, +B, +List): A appears somewhere after B.
+zebra_right_of(A, B, List) :-
+    append(_, [B | After], List),
+    member(A, After).
+
+% zebra_next_to(+A, +B, +List): A and B sit side by side, either order.
+zebra_next_to(A, B, List) :- nextto(A, B, List).
+zebra_next_to(A, B, List) :- nextto(B, A, List).
+
+% zebra_in_order(+A, +B, +C, +List): A, then B, then C, left to right.
+zebra_in_order(A, B, C, List) :-
+    append(_, [A | AfterA], List),
+    append(_, [B | AfterB], AfterA),
+    member(C, AfterB).
+
+% print_zebra: shows the solution one seat per line, left to right.
+print_zebra :-
+    zebra(Historians),
+    forall(member(Historian, Historians), writeln(Historian)).
 
 
 
@@ -285,7 +356,6 @@ test(not_integer, [fail]) :- luhn(abc).
 % Path and cycle tests %
 :- begin_tests(graph).
 
-% Loads the spec's example graph (for testing only), replacing any edges.
 load_example_graph :-
     retractall(user:edge(_, _)),
     forall(member(E, [edge(a,b), edge(b,c), edge(c,d), edge(d,a), edge(d,e), edge(b,a)]),
@@ -327,4 +397,22 @@ test(green_not_suspect, [fail]) :- suspect(msGreen, mrBoddy).
 test(no_self_suspect, [fail]) :- suspect(mrBoddy, mrBoddy).
 
 :- end_tests(clue).
+
+% Zebra tests %
+:- begin_tests(zebra).
+
+test(unique_solution) :-
+    findall(H, zebra(H), Solutions),
+    Solutions == [[
+        h(green,  gabriel, mayan,   star_rise,         65, fishing),
+        h(white,  eugene,  indian,  equinox,           60, cooking),
+        h(red,    francis, chinese, solstice,          45, dancing),
+        h(yellow, samuel,  celtic,  eclipse,           40, drawing),
+        h(blue,   donald,  persian, sunrise_alignment, 70, scuba_diving)
+    ]].
+
+test(who_studies_celtic) :-
+    findall(Name, (zebra(H), member(h(_, Name, celtic, _, _, _), H)), [samuel]).
+
+:- end_tests(zebra).
 
