@@ -138,6 +138,54 @@ path_search(From, To, Visited) :-
 cycle(Node) :-
     path(Node, Node).
 
+% 7. Clue
+% Part A: facts and motive rules.
+% Each two-way relationship (marriage, affair) is stored ONCE as a fact.
+% Separate rules (spouse/2, lovers/2) check both directions, so nothing
+% calls itself and there is no infinite loop.
+
+% rich/1 is dynamic only so the tests can temporarily remove the added fact.
+:- dynamic rich/1.
+
+affair(mrBoddy, msGreen).
+affair(missScarlet, mrBoddy).
+married(profPlum, msGreen).
+greedy(colMustard).
+rich(mrBoddy).
+
+% PART B ADDED FACT: Colonel Mustard is rich.
+% Mustard no longer meets "greedy and NOT rich", so the greed motive
+% fails and Professor Plum becomes the unique suspect.
+rich(colMustard).
+
+% spouse(?Person, ?Spouse): marriage in either direction.
+spouse(Person, Spouse) :- married(Person, Spouse).
+spouse(Person, Spouse) :- married(Spouse, Person).
+
+% lovers(?Person, ?Partner): an affair in either direction.
+lovers(Person, Partner) :- affair(Person, Partner).
+lovers(Person, Partner) :- affair(Partner, Person).
+
+% Hatred: Hater hates Target if Target is having an affair with Hater's spouse.
+hates(Hater, Target) :-
+    spouse(Hater, Spouse),
+    lovers(Target, Spouse).
+
+% Greed: Killer is greedy and not rich, and Victim is rich.
+% greedy/1 comes first so Killer has a value before the \+ check.
+greedy_motive(Killer, Victim) :-
+    greedy(Killer),
+    \+ rich(Killer),
+    rich(Victim).
+
+% Part B: suspect(?Killer, +Victim): anyone with a hatred or greed motive.
+suspect(Killer, Victim) :-
+    hates(Killer, Victim),
+    Killer \== Victim.
+suspect(Killer, Victim) :-
+    greedy_motive(Killer, Victim),
+    Killer \== Victim.
+
 
 
 % ================ TESTS ================ %
@@ -255,3 +303,28 @@ test(unknown_node, [setup(load_example_graph), cleanup(clear_graph), fail]) :- p
 test(no_edges, [setup(clear_graph), fail]) :- path(a, b).
 
 :- end_tests(graph).
+
+% Clue tests %
+:- begin_tests(clue).
+
+remove_added_fact :- retract(user:rich(colMustard)).
+restore_added_fact :- assertz(user:rich(colMustard)).
+
+test(unique_suspect) :-
+    setof(K, suspect(K, mrBoddy), Suspects),
+    Suspects == [profPlum].
+
+test(two_suspects_without_added_fact,
+     [setup(remove_added_fact), cleanup(restore_added_fact)]) :-
+    setof(K, suspect(K, mrBoddy), Suspects),
+    Suspects == [colMustard, profPlum].
+
+test(plum_hates_boddy, [nondet]) :- hates(profPlum, mrBoddy).
+test(spouse_both_ways) :- spouse(msGreen, profPlum).
+test(lovers_both_ways) :- lovers(mrBoddy, missScarlet).
+test(scarlet_not_suspect, [fail]) :- suspect(missScarlet, mrBoddy).
+test(green_not_suspect, [fail]) :- suspect(msGreen, mrBoddy).
+test(no_self_suspect, [fail]) :- suspect(mrBoddy, mrBoddy).
+
+:- end_tests(clue).
+
