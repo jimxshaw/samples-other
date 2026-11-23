@@ -1,0 +1,418 @@
+
+% ================ PREDICATES ================ %
+
+% 1. secondMin(+List, -Min2): Min2 is the second lowest unique number in List.
+% First non-number -> print an error and fail. Then sort with mySort
+% (which also drops duplicates) and take the 2nd item. Fewer than two
+% unique values -> print an error and fail. Does not use sort/2.
+secondMin(List, Min2) :-
+    (   secondmin_first_non_number(List, Bad)
+    ->  format(atom(Message), 'ERROR: "~w" is not a number.', [Bad]),
+        writeln(Message),
+        fail
+    ;   mySort(List, Sorted),
+        (   Sorted = [_, Second | _]
+        ->  Min2 = Second
+        ;   writeln('ERROR: List has fewer than two unique elements.'),
+            fail
+        )
+    ).
+
+% secondmin_first_non_number(+List, -Bad): Bad is the first non-number.
+% Fails if every element is a number.
+secondmin_first_non_number([Head | Tail], Bad) :-
+    (   number(Head)
+    ->  secondmin_first_non_number(Tail, Bad)
+    ;   Bad = Head
+    ).
+
+% mySort(+List, -Sorted): insertion sort, ascending, duplicates removed.
+mySort([], []).
+mySort([Head | Tail], Sorted) :-
+    mySort(Tail, SortedTail),
+    mysort_insert(SortedTail, Head, Sorted).
+
+% mysort_insert(+SortedList, +Item, -Result): put Item in its place,
+% dropping it if an equal value is already there.
+% The list comes first so Prolog picks the clause without a choicepoint.
+mysort_insert([], Item, [Item]).
+mysort_insert([Top | Rest], Item, Result) :-
+    (   Item =:= Top
+    ->  Result = [Top | Rest]
+    ;   Item < Top
+    ->  Result = [Item, Top | Rest]
+    ;   Result = [Top | NewRest],
+        mysort_insert(Rest, Item, NewRest)
+    ).
+
+% 2. classify(+List, +TestPredicate, -Pass, -Fail): split List into the
+% items that pass TestPredicate and the items that fail it, keeping order.
+% Empty list -> two empty lists. Otherwise test the head with call/2,
+% put it on the front of the right basket, and classify the tail.
+classify([], _, [], []).
+classify([Head | Tail], Test, Pass, Fail) :-
+    (   call(Test, Head)
+    ->  Pass = [Head | PassRest],
+        Fail = FailRest
+    ;   Pass = PassRest,
+        Fail = [Head | FailRest]
+    ),
+    classify(Tail, Test, PassRest, FailRest).
+
+% 3. subslice(+List1, +List2): true if List1 appears as a contiguous
+% run of elements anywhere in List2.
+% Try every suffix of List2; succeed if one starts with List1.
+% once/1 stops after the first match since this is a yes/no test.
+subslice(Sub, List) :-
+    once((
+        append(_, Suffix, List),
+        append(Sub, _, Suffix)
+    )).
+
+% 4. shift(+List, +Integer, -Shifted): rotate List N places left
+% (negative N rotates right). N mod Length gives the cut point, then
+% the deck is cut into Front and Back and reassembled as Back + Front.
+% An empty list stays empty (avoids mod by zero).
+shift(List, N, Shifted) :-
+    length(List, Length),
+    (   Length =:= 0
+    ->  Shifted = []
+    ;   CutPoint is N mod Length,
+        length(Front, CutPoint),
+        append(Front, Back, List),
+        append(Back, Front, Shifted)
+    ).
+
+% 5. luhn(+Integer): true if Number passes the Luhn checksum.
+% Walk digits right to left, doubling every 2nd digit (a doubled
+% 2-digit result has its digits added). Valid if the total ends in 0.
+luhn(Number) :-
+    integer(Number),
+    Number >= 0,
+    luhn_sum(Number, false, Sum),
+    Sum mod 10 =:= 0.
+
+% luhn_sum(+Remaining, +ShouldDouble, -Sum): total of the Luhn digit values.
+luhn_sum(Remaining, ShouldDouble, Sum) :-
+    (   Remaining =:= 0
+    ->  Sum = 0
+    ;   Digit is Remaining mod 10,
+        Rest is Remaining // 10,
+        luhn_digit_value(ShouldDouble, Digit, Value),
+        luhn_flip(ShouldDouble, NextShouldDouble),
+        luhn_sum(Rest, NextShouldDouble, RestSum),
+        Sum is Value + RestSum
+    ).
+
+% luhn_digit_value(+ShouldDouble, +Digit, -Value)
+% Flag comes first so Prolog picks the right clause without a choicepoint.
+luhn_digit_value(false, Digit, Digit).
+luhn_digit_value(true, Digit, Value) :-
+    Doubled is Digit * 2,
+    Value is Doubled // 10 + Doubled mod 10.
+
+% luhn_flip(+Flag, -Flipped)
+luhn_flip(true, false).
+luhn_flip(false, true).
+
+% 6. path(+Node1, +Node2) and cycle(+Node) over directed edge/2 facts.
+% The dynamic declaration lets the file load and answer false when no edges exist.
+:- dynamic edge/2.
+
+% path(+From, +To): true if To can be reached from From.
+% Tracks visited nodes so cycles in the graph can't cause infinite recursion.
+% once/1 stops at the first route found, since this is a yes/no test.
+path(From, To) :-
+    once(path_search(From, To, [From])).
+
+% path_search(+From, +To, +Visited)
+path_search(From, To, _) :-
+    edge(From, To).
+path_search(From, To, Visited) :-
+    edge(From, Next),
+    \+ memberchk(Next, Visited),
+    path_search(Next, To, [Next | Visited]).
+
+% cycle(+Node): true if a path leads from Node back to Node.
+cycle(Node) :-
+    path(Node, Node).
+
+% 7. Clue
+% Part A: facts and motive rules.
+% Each two-way relationship (marriage, affair) is stored ONCE as a fact.
+% Separate rules (spouse/2, lovers/2) check both directions, so nothing
+% calls itself and there is no infinite loop.
+
+% rich/1 is dynamic only so the tests can temporarily remove the added fact.
+:- dynamic rich/1.
+
+affair(mrBoddy, msGreen).
+affair(missScarlet, mrBoddy).
+married(profPlum, msGreen).
+greedy(colMustard).
+rich(mrBoddy).
+
+% PART B (cont'd) ADDED FACT: Colonel Mustard is rich.
+% Mustard no longer meets "greedy and NOT rich", so the greed motive
+% fails and Professor Plum becomes the unique suspect.
+rich(colMustard).
+
+% spouse(?Person, ?Spouse): marriage in either direction.
+spouse(Person, Spouse) :- married(Person, Spouse).
+spouse(Person, Spouse) :- married(Spouse, Person).
+
+% lovers(?Person, ?Partner): an affair in either direction.
+lovers(Person, Partner) :- affair(Person, Partner).
+lovers(Person, Partner) :- affair(Partner, Person).
+
+% Hatred: Hater hates Target if Target is having an affair with Hater's spouse.
+hates(Hater, Target) :-
+    spouse(Hater, Spouse),
+    lovers(Target, Spouse).
+
+% Greed: Killer is greedy and not rich, and Victim is rich.
+% greedy/1 comes first so Killer has a value before the \+ check.
+greedy_motive(Killer, Victim) :-
+    greedy(Killer),
+    \+ rich(Killer),
+    rich(Victim).
+
+% Part B: suspect(?Killer, +Victim): anyone with a hatred or greed motive.
+suspect(Killer, Victim) :-
+    hates(Killer, Victim),
+    Killer \== Victim.
+suspect(Killer, Victim) :-
+    greedy_motive(Killer, Victim),
+    Killer \== Victim.
+
+% 8. ZEBRA PUZZLE
+% zebra(-Historians): Historians is the left-to-right seating of five
+% h(Color, Name, Civilization, Event, Age, Hobby) records satisfying every clue.
+% Each clue is stated as a constraint. Prolog searches for the arrangement.
+zebra(Historians) :-
+    Historians = [_, _, _, _, _],
+    % Clue 13: the 65-year-old sits at one of the ends.
+    (   Historians = [h(_, _, _, _, 65, _) | _]
+    ;   last(Historians, h(_, _, _, _, 65, _))
+    ),
+    % Clues 1 and 9: Eugene cooks and discusses the Equinox.
+    member(h(_, eugene, _, equinox, _, cooking), Historians),
+    % Clues 8, 14, 18: Red shirt is Francis, dances, discusses the Solstice.
+    member(h(red, francis, _, solstice, _, dancing), Historians),
+    % Clue 3: Green shirt studies the Mayans.
+    member(h(green, _, mayan, _, _, _), Historians),
+    % Clue 5: the Celtic specialist discusses the Eclipse.
+    member(h(_, _, celtic, eclipse, _, _), Historians),
+    % Clue 7 (first part): the 65-year-old fishes.
+    member(h(_, _, _, _, 65, fishing), Historians),
+    % Clue 15: Donald studies the Persians.
+    member(h(_, donald, persian, _, _, _), Historians),
+    % Clue 20: the Chinese specialist is 45.
+    member(h(_, _, chinese, _, 45, _), Historians),
+    % Clue 12: Yellow shirt is immediately after the 45-year-old.
+    nextto(h(_, _, _, _, 45, _), h(yellow, _, _, _, _, _), Historians),
+    % Clues 4 and 19: the oldest (70) is immediately after Yellow shirt.
+    nextto(h(yellow, _, _, _, _, _), h(_, _, _, _, 70, _), Historians),
+    % Clue 16: the Equinox speaker is immediately after Green shirt.
+    nextto(h(green, _, _, _, _, _), h(_, _, _, equinox, _, _), Historians),
+    % Clue 7 (second part): Red shirt sits next to Samuel.
+    zebra_next_to(h(red, _, _, _, _, _), h(_, samuel, _, _, _, _), Historians),
+    % Clue 17: the 40-year-old sits next to Blue shirt.
+    zebra_next_to(h(_, _, _, _, 40, _), h(blue, _, _, _, _, _), Historians),
+    % Clue 2: the youngest (40) is somewhere right of White shirt.
+    zebra_right_of(h(_, _, _, _, 40, _), h(white, _, _, _, _, _), Historians),
+    % Clue 11: the scuba diver is somewhere right of Yellow shirt.
+    zebra_right_of(h(_, _, _, _, _, scuba_diving), h(yellow, _, _, _, _, _), Historians),
+    % Clue 6: forest hobby (fishing) ... White shirt ... Blue shirt, in order.
+    zebra_in_order(h(_, _, _, _, _, fishing), h(white, _, _, _, _, _),
+                   h(blue, _, _, _, _, _), Historians),
+    % Clue 10: 45-year-old ... Eclipse ... Sunrise alignment, in order.
+    zebra_in_order(h(_, _, _, _, 45, _), h(_, _, _, eclipse, _, _),
+                   h(_, _, _, sunrise_alignment, _, _), Historians),
+    % Every remaining value must appear somewhere, so each property
+    % is used exactly once across the five seats.
+    member(h(_, gabriel, _, _, _, _), Historians),
+    member(h(_, _, indian, _, _, _), Historians),
+    member(h(_, _, _, star_rise, _, _), Historians),
+    member(h(_, _, _, _, 60, _), Historians),
+    member(h(_, _, _, _, _, drawing), Historians).
+
+% zebra_right_of(+A, +B, +List): A appears somewhere after B.
+zebra_right_of(A, B, List) :-
+    append(_, [B | After], List),
+    member(A, After).
+
+% zebra_next_to(+A, +B, +List): A and B sit side by side, either order.
+zebra_next_to(A, B, List) :- nextto(A, B, List).
+zebra_next_to(A, B, List) :- nextto(B, A, List).
+
+% zebra_in_order(+A, +B, +C, +List): A, then B, then C, left to right.
+zebra_in_order(A, B, C, List) :-
+    append(_, [A | AfterA], List),
+    append(_, [B | AfterB], AfterA),
+    member(C, AfterB).
+
+% print_zebra: shows the solution one seat per line, left to right.
+print_zebra :-
+    zebra(Historians),
+    forall(member(Historian, Historians), writeln(Historian)).
+
+
+
+% ================ TESTS ================ %
+% Run with: ?- run_tests.
+
+% secondMin tests %
+:- begin_tests(secondMin).
+
+test(spec_basic) :- secondMin([17,29,11,62,37,53], 17).
+test(spec_negatives) :- secondMin([7,5.2,3,6,-3.6,9,-2], -2).
+test(duplicate_smallest) :- secondMin([1,1,2], 2).
+test(two_items) :- secondMin([9,2], 9).
+
+test(spec_one_item) :-
+    with_output_to(string(Out), \+ secondMin([512], _)),
+    Out == "ERROR: List has fewer than two unique elements.\n".
+test(spec_all_same) :-
+    with_output_to(string(Out), \+ secondMin([3,3,3], _)),
+    Out == "ERROR: List has fewer than two unique elements.\n".
+test(empty) :-
+    with_output_to(string(Out), \+ secondMin([], _)),
+    Out == "ERROR: List has fewer than two unique elements.\n".
+test(spec_non_number) :-
+    with_output_to(string(Out), \+ secondMin([12,2,b,7], _)),
+    Out == "ERROR: \"b\" is not a number.\n".
+test(first_non_number_only) :-
+    with_output_to(string(Out), \+ secondMin([1,x,y], _)),
+    Out == "ERROR: \"x\" is not a number.\n".
+
+test(mysort) :- mySort([3,1,2,3,1], [1,2,3]).
+
+:- end_tests(secondMin).
+
+% classify tests %
+:- begin_tests(classify).
+
+test(even_lambda) :-
+    classify([8,7,6,5,4,3], [X]>>(0 is X mod 2), [8,6,4], [7,5,3]).
+test(integer) :-
+    classify([-4, 11.2, "hi", 9, 0], integer, [-4,9,0], [11.2,"hi"]).
+test(number) :-
+    classify([-4, 11.2, "hi", 9, 0], number, [-4,11.2,9,0], ["hi"]).
+test(empty_undefined_test) :-
+    classify([], odd, [], []).
+test(all_pass) :-
+    classify([a,b,c], atom, [a,b,c], []).
+test(all_fail) :-
+    classify([1,2,3], atom, [], [1,2,3]).
+test(string) :-
+    classify(["a", 1, "b", x], string, ["a","b"], [1,x]).
+
+:- end_tests(classify).
+
+% Subslice tests %
+:- begin_tests(subslice).
+
+test(middle) :- subslice([2,3,4], [1,2,3,4]).
+test(inner) :- subslice([8,13], [3,4,8,13,7]).
+test(missing, [fail]) :- subslice([3], [1,2,4]).
+test(empty_sub) :- subslice([], [1,2,4]).
+test(empty_list, [fail]) :- subslice([1,2,4], []).
+test(whole_list) :- subslice([1,2,4], [1,2,4]).
+test(at_end) :- subslice([4,5], [1,2,4,5]).
+test(appears_twice) :- subslice([1], [1,2,1]).
+test(not_contiguous, [fail]) :- subslice([1,3], [1,2,3]).
+test(both_empty) :- subslice([], []).
+
+:- end_tests(subslice).
+
+% Shift tests %
+:- begin_tests(shift).
+
+test(left_three) :- shift([a,b,c,d,e,f,g,h], 3, [d,e,f,g,h,a,b,c]).
+test(left_one) :- shift([1,2,3,4,5], 1, [2,3,4,5,1]).
+test(right_two) :- shift([a,b,c,d,e,f,g,h], -2, [g,h,a,b,c,d,e,f]).
+test(zero) :- shift([1,2,3], 0, [1,2,3]).
+test(full_turn) :- shift([1,2,3], 3, [1,2,3]).
+test(more_than_length) :- shift([1,2,3], 4, [2,3,1]).
+test(big_negative) :- shift([1,2,3], -4, [3,1,2]).
+test(empty) :- shift([], 5, []).
+test(single) :- shift([x], 7, [x]).
+
+:- end_tests(shift).
+
+% Luhn tests %
+:- begin_tests(luhn).
+
+test(valid_long) :- luhn(799273987104).
+test(valid_spec) :- luhn(49927398716).
+test(valid_short) :- luhn(59).
+test(invalid_spec, [fail]) :- luhn(49927398717).
+test(invalid_other, [fail]) :- luhn(79927398710).
+test(not_integer, [fail]) :- luhn(abc).
+
+:- end_tests(luhn).
+
+% Path and cycle tests %
+:- begin_tests(graph).
+
+load_example_graph :-
+    retractall(user:edge(_, _)),
+    forall(member(E, [edge(a,b), edge(b,c), edge(c,d), edge(d,a), edge(d,e), edge(b,a)]),
+           assertz(user:E)).
+
+clear_graph :- retractall(user:edge(_, _)).
+
+test(spec_path_b_d, [setup(load_example_graph), cleanup(clear_graph)]) :- path(b, d).
+test(spec_path_e_b, [setup(load_example_graph), cleanup(clear_graph), fail]) :- path(e, b).
+test(spec_path_c_a, [setup(load_example_graph), cleanup(clear_graph)]) :- path(c, a).
+test(spec_cycle_b, [setup(load_example_graph), cleanup(clear_graph)]) :- cycle(b).
+test(spec_cycle_e, [setup(load_example_graph), cleanup(clear_graph), fail]) :- cycle(e).
+test(path_to_dead_end, [setup(load_example_graph), cleanup(clear_graph)]) :- path(a, e).
+test(unknown_node, [setup(load_example_graph), cleanup(clear_graph), fail]) :- path(a, z).
+test(no_edges, [setup(clear_graph), fail]) :- path(a, b).
+
+:- end_tests(graph).
+
+% Clue tests %
+:- begin_tests(clue).
+
+remove_added_fact :- retract(user:rich(colMustard)).
+restore_added_fact :- assertz(user:rich(colMustard)).
+
+test(unique_suspect) :-
+    setof(K, suspect(K, mrBoddy), Suspects),
+    Suspects == [profPlum].
+
+test(two_suspects_without_added_fact,
+     [setup(remove_added_fact), cleanup(restore_added_fact)]) :-
+    setof(K, suspect(K, mrBoddy), Suspects),
+    Suspects == [colMustard, profPlum].
+
+test(plum_hates_boddy, [nondet]) :- hates(profPlum, mrBoddy).
+test(spouse_both_ways) :- spouse(msGreen, profPlum).
+test(lovers_both_ways) :- lovers(mrBoddy, missScarlet).
+test(scarlet_not_suspect, [fail]) :- suspect(missScarlet, mrBoddy).
+test(green_not_suspect, [fail]) :- suspect(msGreen, mrBoddy).
+test(no_self_suspect, [fail]) :- suspect(mrBoddy, mrBoddy).
+
+:- end_tests(clue).
+
+% Zebra tests %
+:- begin_tests(zebra).
+
+test(unique_solution) :-
+    findall(H, zebra(H), Solutions),
+    Solutions == [[
+        h(green,  gabriel, mayan,   star_rise,         65, fishing),
+        h(white,  eugene,  indian,  equinox,           60, cooking),
+        h(red,    francis, chinese, solstice,          45, dancing),
+        h(yellow, samuel,  celtic,  eclipse,           40, drawing),
+        h(blue,   donald,  persian, sunrise_alignment, 70, scuba_diving)
+    ]].
+
+test(who_studies_celtic) :-
+    findall(Name, (zebra(H), member(h(_, Name, celtic, _, _, _), H)), [samuel]).
+
+:- end_tests(zebra).
+
