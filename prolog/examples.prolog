@@ -115,6 +115,28 @@ luhn_digit_value(true, Digit, Value) :-
 luhn_flip(true, false).
 luhn_flip(false, true).
 
+% 6. path(+Node1, +Node2) and cycle(+Node) over directed edge/2 facts.
+% The edges come from the grader, so none are defined here. The dynamic
+% declaration lets the file load and answer false when no edges exist.
+:- dynamic edge/2.
+
+% path(+From, +To): true if To can be reached from From.
+% Tracks visited nodes so cycles in the graph can't cause infinite recursion.
+% once/1 stops at the first route found, since this is a yes/no test.
+path(From, To) :-
+    once(path_search(From, To, [From])).
+
+% path_search(+From, +To, +Visited)
+path_search(From, To, _) :-
+    edge(From, To).
+path_search(From, To, Visited) :-
+    edge(From, Next),
+    \+ memberchk(Next, Visited),
+    path_search(Next, To, [Next | Visited]).
+
+% cycle(+Node): true if a path leads from Node back to Node.
+cycle(Node) :-
+    path(Node, Node).
 
 
 
@@ -212,3 +234,24 @@ test(not_integer, [fail]) :- luhn(abc).
 
 :- end_tests(luhn).
 
+% Path and cycle tests %
+:- begin_tests(graph).
+
+% Loads the spec's example graph (for testing only), replacing any edges.
+load_example_graph :-
+    retractall(user:edge(_, _)),
+    forall(member(E, [edge(a,b), edge(b,c), edge(c,d), edge(d,a), edge(d,e), edge(b,a)]),
+           assertz(user:E)).
+
+clear_graph :- retractall(user:edge(_, _)).
+
+test(spec_path_b_d, [setup(load_example_graph), cleanup(clear_graph)]) :- path(b, d).
+test(spec_path_e_b, [setup(load_example_graph), cleanup(clear_graph), fail]) :- path(e, b).
+test(spec_path_c_a, [setup(load_example_graph), cleanup(clear_graph)]) :- path(c, a).
+test(spec_cycle_b, [setup(load_example_graph), cleanup(clear_graph)]) :- cycle(b).
+test(spec_cycle_e, [setup(load_example_graph), cleanup(clear_graph), fail]) :- cycle(e).
+test(path_to_dead_end, [setup(load_example_graph), cleanup(clear_graph)]) :- path(a, e).
+test(unknown_node, [setup(load_example_graph), cleanup(clear_graph), fail]) :- path(a, z).
+test(no_edges, [setup(clear_graph), fail]) :- path(a, b).
+
+:- end_tests(graph).
