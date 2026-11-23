@@ -11,6 +11,20 @@ subslice(Sub, List) :-
         append(Sub, _, Suffix)
     )).
 
+% 4. shift(+List, +Integer, -Shifted): rotate List N places left
+% (negative N rotates right). N mod Length gives the cut point, then
+% the deck is cut into Front and Back and reassembled as Back + Front.
+% An empty list stays empty (avoids mod by zero).
+shift(List, N, Shifted) :-
+    length(List, Length),
+    (   Length =:= 0
+    ->  Shifted = []
+    ;   CutPoint is N mod Length,
+        length(Front, CutPoint),
+        append(Front, Back, List),
+        append(Back, Front, Shifted)
+    ).
+
 % 5. luhn(+Integer): true if Number passes the Luhn checksum.
 % Walk digits right to left, doubling every 2nd digit (a doubled
 % 2-digit result has its digits added). Valid if the total ends in 0.
@@ -64,6 +78,21 @@ test(not_contiguous, [fail]) :- subslice([1,3], [1,2,3]).
 test(both_empty) :- subslice([], []).
 
 :- end_tests(subslice).
+
+% Shift tests %
+:- begin_tests(shift).
+
+test(left_three) :- shift([a,b,c,d,e,f,g,h], 3, [d,e,f,g,h,a,b,c]).
+test(left_one) :- shift([1,2,3,4,5], 1, [2,3,4,5,1]).
+test(right_two) :- shift([a,b,c,d,e,f,g,h], -2, [g,h,a,b,c,d,e,f]).
+test(zero) :- shift([1,2,3], 0, [1,2,3]).
+test(full_turn) :- shift([1,2,3], 3, [1,2,3]).
+test(more_than_length) :- shift([1,2,3], 4, [2,3,1]).
+test(big_negative) :- shift([1,2,3], -4, [3,1,2]).
+test(empty) :- shift([], 5, []).
+test(single) :- shift([x], 7, [x]).
+
+:- end_tests(shift).
 
 % Luhn tests %
 :- begin_tests(luhn).
